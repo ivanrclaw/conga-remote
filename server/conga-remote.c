@@ -163,7 +163,7 @@ static void save_pattern(pattern_t *pat) {
 }
 
 static void delete_pattern(const char *name) {
-    char path[512];
+    char path[768];
     snprintf(path, sizeof(path), "%s/%s.json", PATTERNS_DIR, name);
     unlink(path);
 }
