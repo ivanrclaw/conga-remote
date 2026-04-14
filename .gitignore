@@ -1,0 +1,5 @@
+conga-remote
+*.o
+*.d
+*.swp
+*~

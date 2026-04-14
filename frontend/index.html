@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Conga Remote</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root {
+  --bg: #0a0a0f; --surface: #16162a; --surface2: #1e1e3a; --accent: #6c5ce7;
+  --accent2: #a29bfe; --danger: #e74c3c; --success: #2ecc71; --text: #eee;
+  --text2: #aaa; --radius: 16px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); min-height:100vh; overflow-x:hidden; }
+
+/* Header */
+.header { background: var(--surface); padding: 16px 20px; display:flex; align-items:center;
+  gap:12px; border-bottom:1px solid rgba(255,255,255,0.05); position:sticky; top:0; z-index:10; }
+.header h1 { font-size:18px; font-weight:700; }
+.header .dot { width:8px; height:8px; border-radius:50%; margin-left:auto; flex-shrink:0; }
+.dot-on { background:var(--success); box-shadow:0 0 8px var(--success); }
+.dot-off { background:#555; }
+.dot-learning { background:#f39c12; box-shadow:0 0 8px #f39c12; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* Battery bar */
+.battery { display:flex; align-items:center; gap:8px; padding:8px 20px; font-size:13px; color:var(--text2); }
+.battery-icon { font-size:16px; }
+.battery-bar { flex:1; height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; max-width:120px; }
+.battery-fill { height:100%; border-radius:3px; transition:width .5s; }
+.battery-pct { font-weight:600; min-width:32px; }
+
+/* Tabs */
+.tabs { display:flex; gap:4px; padding:12px 16px 0; }
+.tab { flex:1; padding:10px 0; text-align:center; font-size:13px; font-weight:600;
+  color:var(--text2); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent;
+  transition:all .2s; }
+.tab.active { color:var(--accent2); border-bottom-color:var(--accent2); }
+
+/* Pages */
+.page { display:none; padding:16px; padding-bottom:100px; }
+.page.active { display:block; }
+
+/* === CONTROL PAGE === */
+.control-wrap { display:flex; flex-direction:column; align-items:center; gap:20px; padding-top:20px; }
+
+/* D-Pad */
+.dpad { display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  gap:8px; width:240px; height:240px; }
+.dpad-btn { border-radius:var(--radius); border:2px solid rgba(108,92,231,0.3);
+  background:var(--surface); color:var(--text); font-size:28px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .1s;
+  user-select:none; -webkit-user-select:none; touch-action:none; }
+.dpad-btn:active, .dpad-btn.pressed { background:var(--accent); border-color:var(--accent2);
+  transform:scale(0.95); box-shadow:0 0 20px rgba(108,92,231,0.5); }
+.dpad-empty { background:transparent; border:none; }
+
+/* Speed slider */
+.speed-wrap { width:100%; max-width:260px; }
+.speed-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:4px; }
+.speed-slider { width:100%; -webkit-appearance:none; height:6px; border-radius:3px;
+  background:var(--surface2); outline:none; }
+.speed-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px;
+  border-radius:50%; background:var(--accent2); cursor:pointer; }
+
+/* Manual enable toggle */
+.manual-toggle { display:flex; align-items:center; gap:12px; padding:12px 16px;
+  background:var(--surface); border-radius:var(--radius); width:100%; max-width:260px; }
+.manual-toggle span { font-size:14px; }
+.toggle-switch { width:48px; height:28px; border-radius:14px; background:#444;
+  position:relative; cursor:pointer; transition:background .3s; margin-left:auto; flex-shrink:0; }
+.toggle-switch.on { background:var(--accent); }
+.toggle-switch::after { content:''; position:absolute; top:3px; left:3px; width:22px; height:22px;
+  border-radius:50%; background:#fff; transition:transform .3s; }
+.toggle-switch.on::after { transform:translateX(20px); }
+
+/* === LEARN PAGE === */
+.learn-status { text-align:center; padding:20px; border-radius:var(--radius); margin-bottom:16px; }
+.learn-status.idle { background:var(--surface); }
+.learn-status.recording { background:rgba(243,156,18,0.15); border:1px solid rgba(243,156,18,0.3); }
+.learn-count { font-size:48px; font-weight:800; line-height:1; }
+.learn-label { font-size:13px; color:var(--text2); margin-top:4px; }
+
+.learn-dpad { display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  gap:8px; width:200px; height:200px; margin:16px auto; }
+.learn-btn { border-radius:12px; border:2px solid rgba(243,156,18,0.3);
+  background:var(--surface); color:var(--text); font-size:22px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .1s;
+  user-select:none; touch-action:none; }
+.learn-btn:active, .learn-btn.pressed { background:#f39c12; border-color:#f1c40f; transform:scale(0.95); }
+.learn-empty { background:transparent; border:none; }
+
+.learn-actions { display:flex; flex-direction:column; gap:10px; max-width:300px; margin:0 auto; }
+.btn { padding:14px 20px; border-radius:12px; border:none; font-size:15px; font-weight:600;
+  cursor:pointer; transition:all .2s; width:100%; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:active { background:var(--accent2); }
+.btn-danger { background:var(--danger); color:#fff; }
+.btn-danger:active { background:#c0392b; }
+.btn-success { background:var(--success); color:#fff; }
+.btn-success:active { background:#27ae60; }
+.btn-outline { background:transparent; color:var(--text2); border:1px solid rgba(255,255,255,0.15); }
+.btn:disabled { opacity:.4; pointer-events:none; }
+
+.save-form { display:none; margin-top:12px; }
+.save-form input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.15);
+  background:var(--surface2); color:var(--text); font-size:15px; outline:none; margin-bottom:10px; }
+.save-form input:focus { border-color:var(--accent); }
+
+/* === PATTERNS PAGE === */
+.pattern-list { display:flex; flex-direction:column; gap:10px; }
+.pattern-card { background:var(--surface); border-radius:var(--radius); padding:16px;
+  display:flex; align-items:center; gap:12px; }
+.pattern-info { flex:1; }
+.pattern-name { font-size:16px; font-weight:600; }
+.pattern-meta { font-size:12px; color:var(--text2); margin-top:2px; }
+.pattern-btns { display:flex; gap:8px; }
+.pattern-btn { width:40px; height:40px; border-radius:10px; border:none; font-size:18px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+.pattern-play { background:rgba(46,204,113,0.15); color:var(--success); }
+.pattern-play:active { background:var(--success); color:#fff; }
+.pattern-del { background:rgba(231,76,60,0.15); color:var(--danger); }
+.pattern-del:active { background:var(--danger); color:#fff; }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--text2); }
+.empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+/* Toast */
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); padding:10px 20px;
+  border-radius:10px; background:var(--surface2); color:var(--text); font-size:14px;
+  opacity:0; transition:opacity .3s; pointer-events:none; z-index:100; }
+.toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>🤖 Conga Remote</h1>
+  <div class="dot dot-off" id="statusDot"></div>
+</div>
+
+<!-- Battery -->
+<div class="battery" id="batteryBar">
+  <span class="battery-icon">🔋</span>
+  <div class="battery-bar"><div class="battery-fill" id="batteryFill" style="width:0%;background:var(--success)"></div></div>
+  <span class="battery-pct" id="batteryPct">--%</span>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-page="control">🎮 Control</button>
+  <button class="tab" data-page="learn">📚 Aprender</button>
+  <button class="tab" data-page="patterns">🔄 Patrones</button>
+</div>
+
+<!-- Control Page -->
+<div class="page active" id="page-control">
+  <div class="control-wrap">
+    <div class="manual-toggle">
+      <span>Control Manual</span>
+      <div class="toggle-switch" id="manualToggle" onclick="toggleManual()"></div>
+    </div>
+
+    <div class="dpad" id="dpad">
+      <div class="dpad-empty"></div>
+      <button class="dpad-btn" data-dir="forward">▲</button>
+      <div class="dpad-empty"></div>
+      <button class="dpad-btn" data-dir="left">◀</button>
+      <div class="dpad-empty"></div>
+      <button class="dpad-btn" data-dir="right">▶</button>
+      <div class="dpad-empty"></div>
+      <button class="dpad-btn" data-dir="backward">▼</button>
+      <div class="dpad-empty"></div>
+    </div>
+
+    <div class="speed-wrap">
+      <div class="speed-label"><span>Duración del pulso</span><span id="speedVal">300ms</span></div>
+      <input type="range" class="speed-slider" id="speedSlider" min="100" max="2000" value="300" step="50">
+    </div>
+  </div>
+</div>
+
+<!-- Learn Page -->
+<div class="page" id="page-learn">
+  <div class="learn-status idle" id="learnStatus">
+    <div class="learn-count" id="learnCount">0</div>
+    <div class="learn-label" id="learnLabel">Pasos grabados</div>
+  </div>
+
+  <div class="learn-dpad" id="learnDpad">
+    <div class="learn-empty"></div>
+    <button class="learn-btn" data-dir="forward">▲</button>
+    <div class="learn-empty"></div>
+    <button class="learn-btn" data-dir="left">◀</button>
+    <div class="learn-empty"></div>
+    <button class="learn-btn" data-dir="right">▶</button>
+    <div class="learn-empty"></div>
+    <button class="learn-btn" data-dir="backward">▼</button>
+    <div class="learn-empty"></div>
+  </div>
+
+  <div class="learn-actions">
+    <button class="btn btn-primary" id="btnLearnStart" onclick="startLearning()">⏺ Empezar a grabar</button>
+    <button class="btn btn-danger" id="btnLearnStop" onclick="stopLearning()" disabled>⏹ Detener grabación</button>
+    <div class="save-form" id="saveForm">
+      <input type="text" id="patternNameInput" placeholder="Nombre del patrón..." maxlength="30">
+      <button class="btn btn-success" onclick="savePattern()">💾 Guardar patrón</button>
+    </div>
+  </div>
+</div>
+
+<!-- Patterns Page -->
+<div class="page" id="page-patterns">
+  <div class="pattern-list" id="patternList"></div>
+  <div class="empty-state" id="emptyPatterns">
+    <div class="icon">📭</div>
+    <p>No hay patrones guardados</p>
+    <p style="margin-top:4px;font-size:13px">Ve a Aprender para crear uno</p>
+  </div>
+  <div style="margin-top:16px">
+    <button class="btn btn-outline" onclick="refreshPatterns()" style="max-width:200px;margin:0 auto;display:block">🔄 Actualizar</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';  /* same origin */
+let manualOn = false;
+let learning = false;
+let pulseDuration = 300;
+
+/* === Tabs === */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('page-' + t.dataset.page).classList.add('active');
+    if (t.dataset.page === 'patterns') refreshPatterns();
+  });
+});
+
+/* === Speed slider === */
+const speedSlider = document.getElementById('speedSlider');
+speedSlider.addEventListener('input', () => {
+  pulseDuration = parseInt(speedSlider.value);
+  document.getElementById('speedVal').textContent = pulseDuration + 'ms';
+});
+
+/* === Manual toggle === */
+async function toggleManual() {
+  const el = document.getElementById('manualToggle');
+  try {
+    const res = await post(manualOn ? '/api/disable' : '/api/enable');
+    const data = await res.json();
+    if (data.ok) {
+      manualOn = !manualOn;
+      el.classList.toggle('on', manualOn);
+      updateStatusDot();
+    }
+  } catch(e) { showToast('Error de conexión'); }
+}
+
+/* === D-Pad (control page) === */
+function setupDpad(containerId, onMove) {
+  const ct = document.getElementById(containerId);
+  ct.querySelectorAll('[data-dir]').forEach(btn => {
+    let interval = null, timeout = null;
+
+    const start = (e) => {
+      e.preventDefault();
+      btn.classList.add('pressed');
+      onMove(btn.dataset.dir);
+      /* Repeat while held */
+      timeout = setTimeout(() => {
+        interval = setInterval(() => onMove(btn.dataset.dir), pulseDuration);
+      }, pulseDuration + 50);
+    };
+
+    const stop = (e) => {
+      e.preventDefault();
+      btn.classList.remove('pressed');
+      clearTimeout(timeout);
+      clearInterval(interval);
+      interval = null; timeout = null;
+    };
+
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', start, {passive:false});
+    btn.addEventListener('touchend', stop, {passive:false});
+    btn.addEventListener('touchcancel', stop, {passive:false});
+  });
+}
+
+setupDpad('dpad', async (dir) => {
+  if (!manualOn) {
+    /* Auto-enable manual on first press */
+    await post('/api/enable');
+    manualOn = true;
+    document.getElementById('manualToggle').classList.add('on');
+    updateStatusDot();
+  }
+  await post('/api/' + dir, {duration: pulseDuration});
+});
+
+setupDpad('learnDpad', async (dir) => {
+  if (!learning) return;
+  await post('/api/' + dir, {duration: pulseDuration});
+  updateLearnCount();
+});
+
+/* === Learning === */
+async function startLearning() {
+  try {
+    /* Enable manual control first */
+    await post('/api/enable');
+    manualOn = true;
+    document.getElementById('manualToggle').classList.add('on');
+
+    const res = await post('/api/learn/start');
+    const data = await res.json();
+    if (data.ok) {
+      learning = true;
+      document.getElementById('btnLearnStart').disabled = true;
+      document.getElementById('btnLearnStop').disabled = false;
+      document.getElementById('saveForm').style.display = 'none';
+      updateLearnUI();
+      updateStatusDot();
+    }
+  } catch(e) { showToast('Error'); }
+}
+
+function stopLearning() {
+  /* Just stop the recording, show save form */
+  learning = false;
+  document.getElementById('btnLearnStart').disabled = false;
+  document.getElementById('btnLearnStop').disabled = true;
+  if (getLearnCount() > 0) {
+    document.getElementById('saveForm').style.display = 'block';
+    document.getElementById('patternNameInput').focus();
+  }
+  updateLearnUI();
+  updateStatusDot();
+}
+
+async function savePattern() {
+  const name = document.getElementById('patternNameInput').value.trim();
+  if (!name) { showToast('Escribe un nombre'); return; }
+
+  try {
+    const res = await post('/api/learn/stop', {name: name});
+    const data = await res.json();
+    if (data.ok) {
+      showToast('Patrón "' + name + '" guardado (' + data.steps + ' pasos)');
+      document.getElementById('patternNameInput').value = '';
+      document.getElementById('saveForm').style.display = 'none';
+      updateLearnCount();
+    } else {
+      showToast(data.error || 'Error al guardar');
+    }
+  } catch(e) { showToast('Error de conexión'); }
+
+  /* Disable manual after saving */
+  await post('/api/disable');
+  manualOn = false;
+  document.getElementById('manualToggle').classList.remove('on');
+  updateStatusDot();
+}
+
+async function updateLearnCount() {
+  try {
+    const res = await fetch(API + '/api/status');
+    const data = await res.json();
+    document.getElementById('learnCount').textContent = data.recording_steps || 0;
+  } catch(e) {}
+}
+
+function getLearnCount() {
+  return parseInt(document.getElementById('learnCount').textContent) || 0;
+}
+
+function updateLearnUI() {
+  const status = document.getElementById('learnStatus');
+  const label = document.getElementById('learnLabel');
+  if (learning) {
+    status.className = 'learn-status recording';
+    label.textContent = 'Grabando... usa las flechas';
+  } else {
+    status.className = 'learn-status idle';
+    label.textContent = getLearnCount() > 0 ? 'Pasos grabados' : 'Pasos grabados';
+  }
+}
+
+/* === Patterns === */
+async function refreshPatterns() {
+  try {
+    const res = await fetch(API + '/api/patterns');
+    const data = await res.json();
+    const list = document.getElementById('patternList');
+    const empty = document.getElementById('emptyPatterns');
+
+    if (!data.patterns || data.patterns.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = data.patterns.map(p => `
+      <div class="pattern-card">
+        <div class="pattern-info">
+          <div class="pattern-name">${esc(p.name)}</div>
+          <div class="pattern-meta">${p.steps} pasos</div>
+        </div>
+        <div class="pattern-btns">
+          <button class="pattern-btn pattern-play" onclick="playPattern('${esc(p.name)}')" title="Reproducir">▶</button>
+          <button class="pattern-btn pattern-del" onclick="deletePattern('${esc(p.name)}')" title="Eliminar">✕</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { showToast('Error al cargar patrones'); }
+}
+
+async function playPattern(name) {
+  try {
+    showToast('▶ Reproduciendo "' + name + '"...');
+    await post('/api/play/' + encodeURIComponent(name));
+  } catch(e) { showToast('Error al reproducir'); }
+}
+
+async function deletePattern(name) {
+  if (!confirm('¿Eliminar patrón "' + name + '"?')) return;
+  try {
+    await fetch(API + '/api/patterns/' + encodeURIComponent(name), {method:'DELETE'});
+    showToast('Patrón eliminado');
+    refreshPatterns();
+  } catch(e) { showToast('Error'); }
+}
+
+/* === Robot status polling === */
+async function pollRobot() {
+  try {
+    const res = await fetch(API + '/api/robot');
+    const data = await res.json();
+    /* Find battery */
+    if (data.attributes) {
+      const batt = data.attributes.find(a => a.__class === 'BatteryStateAttribute');
+      if (batt) {
+        const pct = batt.level;
+        document.getElementById('batteryPct').textContent = pct + '%';
+        document.getElementById('batteryFill').style.width = pct + '%';
+        const clr = pct > 50 ? 'var(--success)' : pct > 20 ? '#f39c12' : 'var(--danger)';
+        document.getElementById('batteryFill').style.background = clr;
+      }
+      /* Find status for dot */
+      const status = data.attributes.find(a => a.__class === 'StatusStateAttribute');
+      if (status && status.value !== 'idle') {
+        /* Robot is doing something */ 
+      }
+    }
+  } catch(e) {}
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch(API + '/api/status');
+    const data = await res.json();
+    updateStatusDot(data);
+    if (data.recording_steps !== undefined) {
+      document.getElementById('learnCount').textContent = data.recording_steps;
+    }
+  } catch(e) {}
+}
+
+function updateStatusDot(data) {
+  const dot = document.getElementById('statusDot');
+  if (learning) { dot.className = 'dot dot-learning'; }
+  else if (manualOn) { dot.className = 'dot dot-on'; }
+  else { dot.className = 'dot dot-off'; }
+}
+
+/* === Helpers === */
+async function post(path, body) {
+  const opts = {method:'POST', headers:{'Content-Type':'application/json'}};
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(API + path, opts);
+}
+
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* === Init === */
+refreshPatterns();
+pollRobot();
+pollStatus();
+setInterval(pollRobot, 10000);
+setInterval(pollStatus, 3000);
+</script>
+</body>
+</html>
