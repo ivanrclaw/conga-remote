@@ -306,24 +306,24 @@ static void api_move(int fd, int cmd, int duration_ms) {
         g_recording.steps[g_recording.num_steps].duration_ms = duration_ms;
         g_recording.num_steps++;
     }
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 9);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 11);
 }
 
 static void api_enable_manual(int fd) {
     if (send_manual_action("{\"action\":\"enable\"}") < 0) { send_error(fd, 502, "Failed to reach Congatudo"); return; }
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 9);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 11);
 }
 
 static void api_disable_manual(int fd) {
     if (send_manual_action("{\"action\":\"disable\"}") < 0) { send_error(fd, 502, "Failed to reach Congatudo"); return; }
     if (g_learning) g_learning = 0;
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 9);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 11);
 }
 
 static void api_start_learning(int fd) {
     g_learning = 1;
     memset(&g_recording, 0, sizeof(g_recording));
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true,\"learning\":true}", 21);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true,\"learning\":true}", 27);
 }
 
 static void api_stop_learning(int fd, const char *name, int name_len) {
@@ -381,7 +381,7 @@ static void api_delete_pattern(int fd, const char *name) {
             g_num_patterns--; break;
         }
     }
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 9);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 11);
 }
 
 static void api_play_pattern(int fd, const char *name) {
@@ -416,7 +416,7 @@ static void api_play_pattern(int fd, const char *name) {
 static void api_stop_play(int fd) {
     if (g_playing > 0) { kill(g_playing, SIGTERM); g_playing = 0; }
     send_manual_action("{\"action\":\"disable\"}");
-    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 9);
+    send_response(fd, 200, "OK", "application/json", "{\"ok\":true}", 11);
 }
 
 static void api_status(int fd) {
